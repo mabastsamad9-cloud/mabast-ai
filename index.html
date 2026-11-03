@@ -4,67 +4,44 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#0b0c10" />
-  <meta name="description" content="Mabast AI — یارمەتییەکی زیرەک بۆ بیرکردنەوە، نووسین و داهێنان." />
-  <title>Mabast AI — یارمەتیی زیرەک</title>
+  <meta name="description" content="Mabast AI — شوێنی تایبەتی تۆ بۆ گفتوگۆ، داهێنان و کارکردن بە AI." />
+  <title>Mabast AI — شوێنی کارکردنی زیرەک</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <div class="app-shell">
+  <div class="layout">
     <aside class="sidebar" id="sidebar">
-      <a class="brand" href="#" aria-label="Mabast AI سەرەتا">
-        <span class="brand-mark"><svg viewBox="0 0 36 36" aria-hidden="true"><path d="M18 3.5 21.7 14l10.8 4-10.8 4L18 32.5 14.3 22 3.5 18l10.8-4L18 3.5Z"/><path d="m28.5 3 1.6 4.4 4.4 1.6-4.4 1.6-1.6 4.4-1.6-4.4-4.4-1.6 4.4-1.6L28.5 3Z"/></svg></span>
-        <span class="brand-name">Mabast<span> AI</span></span>
-      </a>
-      <button class="new-chat" id="newChat"><span class="plus">＋</span> گفتوگۆی نوێ <kbd>⌘ K</kbd></button>
-      <div class="side-label">مێژووی گفتوگۆ</div>
-      <div class="history-list" id="historyList"><div class="empty-history">گفتوگۆکانت لێرە دەردەکەون</div></div>
+      <a class="brand" href="#chat" aria-label="Mabast AI"><span class="brand-mark">✦</span><span>Mabast <b>AI</b></span></a>
+      <button class="new-chat" id="newChat"><span>＋</span> گفتوگۆی نوێ <kbd>⌘ K</kbd></button>
+      <nav class="primary-nav" aria-label="سەرەکی">
+        <button class="nav-item active" data-view="chat"><span>▤</span> چات <small>↵</small></button>
+        <button class="nav-item" data-view="images"><span>✧</span> ستۆدیۆی وێنە <em>نوێ</em></button>
+        <button class="nav-item" data-view="library"><span>▧</span> کتێبخانە</button>
+      </nav>
+      <div class="side-heading"><span>مێژووی گفتوگۆ</span><button id="searchToggle" title="گەڕان">⌕</button></div>
+      <div class="search-box" id="searchBox"><input id="historySearch" placeholder="گەڕان لە گفتوگۆکان..." /></div>
+      <div class="history-list" id="historyList"></div>
       <div class="sidebar-bottom">
-        <div class="plan-card"><div class="plan-icon">✦</div><div><strong>بەخێربێیت بۆ Mabast</strong><span>یارمەتییەکی زیرەک، هەمیشە لەگەڵت</span></div></div>
-        <button class="profile"><span class="avatar">M</span><span class="profile-name"><strong>Mabast AI</strong><small>پلانی بەخۆڕایی</small></span><span class="dots">•••</span></button>
+        <div class="upgrade"><span class="upgrade-star">✦</span><div><b>Mabast AI workspace</b><small>شوێنێک بۆ بیرۆکە گەورەکانت</small></div></div>
+        <button class="account" id="settingsNav"><span class="account-avatar">M</span><span><b>Mabast</b><small>ڕێکخستنەکان</small></span><i>•••</i></button>
       </div>
     </aside>
+    <div class="scrim" id="scrim"></div>
 
-    <main class="main-area">
+    <main class="main">
       <header class="topbar">
-        <button class="icon-btn menu-btn" id="menuToggle" aria-label="کردنەوەی لیست">☰</button>
-        <div class="model-picker"><span class="model-dot"></span><span>Mabast AI</span><span class="chevron">⌄</span></div>
-        <div class="top-actions"><span class="status"><i></i> ئامادەیە</span><button class="icon-btn" id="themeToggle" aria-label="گۆڕینی دۆخی ڕووناکی" title="گۆڕینی دۆخ">☼</button></div>
+        <div class="top-left"><button class="icon-btn menu-btn" id="menuToggle" aria-label="مێنیو">☰</button><div class="model-select"><span class="online-dot"></span><b>Mabast AI</b><span>⌄</span></div></div>
+        <div class="top-right"><span class="workspace-label">شوێنی کاری تایبەتی</span><button class="icon-btn" id="themeToggle" aria-label="گۆڕینی ڕووناکی" title="گۆڕینی دۆخ">☼</button></div>
       </header>
-
-      <section class="conversation" id="conversation" aria-live="polite">
-        <div class="welcome" id="welcome">
-          <div class="welcome-orb"><span>✦</span><i></i></div>
-          <p class="eyebrow">یارمەتییەکی زیرەک بۆ هەموو ڕۆژێکت</p>
-          <h1>سڵاو، <span>چۆن یارمەتیت بدەم؟</span></h1>
-          <p class="welcome-sub">پرسیار بکە، بیرۆکەکانت گەشە پێبدە، یان شتێکی نوێ دروست بکە.</p>
-          <div class="suggestions">
-            <button class="suggestion" data-prompt="پلانێکی باش بۆ فێربوونی زمانی ئینگلیزی بۆم دابنێ"><span class="suggestion-icon violet">✦</span><span><b>فێربوونی شتێکی نوێ</b><small>پلانێکی فێربوون بۆم دابنێ</small></span><span class="suggest-arrow">↙</span></button>
-            <button class="suggestion" data-prompt="یارمەتیم بدە نامەیەکی پیشەیی بۆ کار بنووسم"><span class="suggestion-icon blue">✎</span><span><b>یارمەتی لە نووسین</b><small>نامەیەک بە شێوەیەکی پیشەیی بنووسە</small></span><span class="suggest-arrow">↙</span></button>
-            <button class="suggestion" data-prompt="بیرۆکەیەکی سەرنجڕاکێش بۆ وێنەیەک لە شارێکی خەیاڵی پێشنیار بکە"><span class="suggestion-icon orange">◇</span><span><b>داهێنان و بیرۆکە</b><small>بیرۆکەیەکی تازە پێشنیار بکە</small></span><span class="suggest-arrow">↙</span></button>
-            <button class="suggestion" data-prompt="ئەمڕۆ چی دەتوانیت بۆم بکەیت؟"><span class="suggestion-icon green">⌘</span><span><b>یارمەتی لە کارەکان</b><small>بزانە چۆن دەتوانم یارمەتیت بدەم</small></span><span class="suggest-arrow">↙</span></button>
-          </div>
-        </div>
-        <div class="messages" id="messages"></div>
-      </section>
-
-      <footer class="composer-wrap">
-        <div class="composer" id="composer">
-          <div class="attachment-preview" id="attachmentPreview"></div>
-          <textarea id="promptInput" rows="1" placeholder="پرسیارێکت بنووسە..." aria-label="پرسیارەکەت بنووسە"></textarea>
-          <div class="composer-tools">
-            <div class="tool-left"><button class="tool-btn" id="attachBtn" title="بارکردنی وێنە یان ڤیدیۆ" aria-label="بارکردنی وێنە یان ڤیدیۆ"><span class="attach-plus">＋</span><span class="tool-text">هاوپێچ</span></button><span class="tool-divider"></span><span class="hint">بە شێوەی سروشتی بنووسە</span></div>
-            <button class="send-btn" id="sendBtn" aria-label="ناردن" title="ناردن"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 12 20 4.5l-4.7 15-3.1-6.2L4.5 12Z"/><path d="m12.2 13.3 4.2-4.2"/></svg></button>
-          </div>
-          <input type="file" id="fileInput" accept="image/*,video/*" multiple hidden />
-        </div>
-        <p class="disclaimer">Mabast AI دەتوانێت هەڵە بکات. بۆ زانیاریی گرنگ، سەرچاوەکان بپشکنە.</p>
-      </footer>
+      <section id="view" class="view" aria-live="polite"></section>
+      <footer class="footer-note">Mabast AI لە دۆخی پێش‌نمایشدایە · بۆ وەڵامی ڕاستەقینە و پاراستنی داتا، پەیوەندیی سێرڤەر و AI API پێویستە.</footer>
     </main>
   </div>
-  <div class="sidebar-scrim" id="sidebarScrim"></div>
+  <input type="file" id="fileInput" accept="image/*,video/*" multiple hidden />
+  <div class="toast" id="toast" role="status"></div>
   <script src="app.js"></script>
 </body>
 </html>

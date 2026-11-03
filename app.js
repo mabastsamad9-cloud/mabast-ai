@@ -1,78 +1,32 @@
-/* Mabast AI frontend demo. Connect a trusted server-side AI API before production use. */
-const $ = (s) => document.querySelector(s);
-const input = $('#promptInput');
-const messagesEl = $('#messages');
-const welcome = $('#welcome');
-const fileInput = $('#fileInput');
-const preview = $('#attachmentPreview');
-const sendBtn = $('#sendBtn');
-let attachments = [];
-let chats = JSON.parse(localStorage.getItem('mabast-chats') || '[]');
-let activeChatId = null;
-
-function saveChats() { localStorage.setItem('mabast-chats', JSON.stringify(chats)); }
-function renderHistory() {
-  const list = $('#historyList');
-  if (!chats.length) { list.innerHTML = '<div class="empty-history">گفتوگۆکانت لێرە دەردەکەون</div>'; return; }
-  list.innerHTML = chats.slice().reverse().map(c => `<div class="history-item ${c.id === activeChatId ? 'active' : ''}" data-id="${c.id}"><span>◷</span><span style="overflow:hidden;text-overflow:ellipsis">${escapeHtml(c.title)}</span></div>`).join('');
-  list.querySelectorAll('.history-item').forEach(el => el.addEventListener('click', () => loadChat(el.dataset.id)));
+/* Frontend demo: connect a server-side AI provider before presenting generated answers or images. */
+const $=s=>document.querySelector(s), view=$('#view'), fileInput=$('#fileInput');
+let chats=JSON.parse(localStorage.getItem('mabast-chats')||'[]'), activeId=null, files=[], toastTimer;
+const save=()=>localStorage.setItem('mabast-chats',JSON.stringify(chats));
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function notify(msg){const t=$('#toast');t.textContent=msg;t.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),2500)}
+function setNav(key){document.querySelectorAll('.nav-item').forEach(x=>x.classList.toggle('active',x.dataset.view===key))}
+function renderHistory(filter=''){
+ const list=$('#historyList');const items=chats.slice().reverse().filter(c=>c.title.toLowerCase().includes(filter.toLowerCase()));
+ if(!items.length){list.innerHTML=`<div class="empty-history">${filter?'هیچ گفتوگۆیەک نەدۆزرایەوە':'گفتوگۆکانت لێرە دەردەکەون'}</div>`;return}
+ list.innerHTML=items.map(c=>`<div class="history-item ${c.id===activeId?'active':''}" data-id="${esc(c.id)}"><span>◷</span><span class="title">${esc(c.title)}</span><button class="delete" title="سڕینەوە" data-delete="${esc(c.id)}">×</button></div>`).join('');
+ list.querySelectorAll('.history-item').forEach(el=>el.addEventListener('click',e=>{if(e.target.closest('[data-delete]'))return;loadChat(el.dataset.id)}));
+ list.querySelectorAll('[data-delete]').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation();chats=chats.filter(c=>c.id!==b.dataset.delete);if(activeId===b.dataset.delete)newChat();save();renderHistory($('#historySearch').value)}));
 }
-function escapeHtml(text) { return String(text).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-function setWelcome(show) { welcome.style.display = show ? '' : 'none'; }
-function addMessage(role, text, files = []) {
-  setWelcome(false);
-  const row = document.createElement('div'); row.className = `message ${role}`;
-  const avatar = document.createElement('div'); avatar.className = 'message-avatar'; avatar.textContent = role === 'assistant' ? '✦' : 'M';
-  const body = document.createElement('div'); body.className = 'message-content'; body.textContent = text;
-  files.forEach(file => { const url = URL.createObjectURL(file); const media = document.createElement(file.type.startsWith('video/') ? 'video' : 'img'); media.src = url; if (media.tagName === 'VIDEO') { media.controls = true; media.playsInline = true; } body.appendChild(media); });
-  row.append(avatar, body); messagesEl.appendChild(row); $('#conversation').scrollTop = $('#conversation').scrollHeight; return row;
+function newChat(){activeId=null;files=[];setNav('chat');renderChat();closeSide();}
+function loadChat(id){const c=chats.find(x=>x.id===id);if(!c)return;activeId=id;setNav('chat');renderChat();closeSide()}
+function createChat(title){activeId=crypto.randomUUID();chats.push({id:activeId,title:title.slice(0,46)||'گفتوگۆی نوێ',messages:[],created:Date.now()});save()}
+function addMessage(role,text,media=[]){const row=document.createElement('div');row.className=`message ${role}`;const av=document.createElement('div');av.className='message-avatar';av.textContent=role==='assistant'?'✦':'M';const body=document.createElement('div');body.className='message-body';body.textContent=text;media.forEach(f=>{const url=URL.createObjectURL(f),el=document.createElement(f.type.startsWith('video/')?'video':'img');el.src=url;if(el.tagName==='VIDEO'){el.controls=true;el.playsInline=true}body.appendChild(el)});row.append(av,body);return row}
+function chatTemplate(){return `<div class="chat-home"><div class="welcome"><div class="orb">✦</div><p class="eyebrow">شوێنی کاری زیرەک و داهێنان</p><h1>سڵاو، <span>ئەمڕۆ چی لە مێشکتدایە؟</span></h1><p class="sub">بیرۆکەکەت بنووسە؛ لە پرسیارەوە تا پلان و داهێنان، لە یەک شوێن.</p><div class="suggestions"><button class="suggestion" data-prompt="پلانێکی ٧ ڕۆژە بۆ فێربوونی زمانی ئینگلیزی دابنێ"><span class="s-icon">✦</span><span><b>پلانی فێربوون</b><small>ڕێگایەکی ڕوون بۆ ئامانجەکەت</small></span><span class="arrow">↙</span></button><button class="suggestion" data-prompt="یارمەتیم بدە نامەیەکی پیشەیی بۆ کار بنووسم"><span class="s-icon">✎</span><span><b>یارمەتیی نووسین</b><small>نامە، ڕاپۆرت یان بیرۆکە</small></span><span class="arrow">↙</span></button><button class="suggestion" data-prompt="٥ بیرۆکەی تازە بۆ پڕۆژەیەکی بچووک پێشنیار بکە"><span class="s-icon">◇</span><span><b>داهێنان و بیرۆکە</b><small>بیرۆکەکانت بکە بە هەنگاوی کارا</small></span><span class="arrow">↙</span></button><button class="suggestion" data-prompt="ئەمڕۆ یارمەتیم بدە کارەکانم ڕێک بخەم"><span class="s-icon">⌘</span><span><b>ڕێکخستنی کارەکان</b><small>یارمەتی لە پلاندانان و ڕێکخستن</small></span><span class="arrow">↙</span></button></div></div><div class="messages" id="messages"></div></div><div class="composer-wrap"><div class="composer"><div class="attachment-row" id="attachmentRow"></div><textarea id="prompt" rows="1" placeholder="پرسیارێک بنووسە..." aria-label="پرسیارەکەت"></textarea><div class="composer-bottom"><div class="composer-tools"><button class="tool-button" id="attach"><span>＋</span> هاوپێچ</button><span class="tool-sep"></span><button class="tool-button" id="imageJump">✧ ستۆدیۆی وێنە</button></div><button class="send" id="send" aria-label="ناردن">↑</button></div></div></div>`}
+function renderChat(){view.innerHTML=chatTemplate();const messages=$('#messages');const c=chats.find(x=>x.id===activeId);if(c&&c.messages.length){view.querySelector('.welcome').style.display='none';c.messages.forEach(m=>messages.appendChild(addMessage(m.role,m.text)))}
+ view.querySelectorAll('[data-prompt]').forEach(b=>b.onclick=()=>{$('#prompt').value=b.dataset.prompt;$('#prompt').focus()});$('#attach').onclick=()=>fileInput.click();$('#imageJump').onclick=()=>showView('images');$('#send').onclick=send;
+ const input=$('#prompt');input.oninput=()=>{input.style.height='auto';input.style.height=Math.min(input.scrollHeight,140)+'px'};input.onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send()}};renderAttachments();
 }
-function newChat() { activeChatId = null; messagesEl.replaceChildren(); setWelcome(true); renderHistory(); input.focus(); closeSidebar(); }
-function loadChat(id) {
-  const chat = chats.find(c => c.id === id); if (!chat) return;
-  activeChatId = id; messagesEl.replaceChildren(); setWelcome(!chat.messages.length);
-  chat.messages.forEach(m => addMessage(m.role, m.text)); renderHistory(); closeSidebar();
-}
-function updateChat(role, text) {
-  if (!activeChatId) { activeChatId = crypto.randomUUID(); chats.push({id:activeChatId,title:text.slice(0,42) || 'گفتوگۆی نوێ',messages:[],updated:Date.now()}); }
-  const chat = chats.find(c => c.id === activeChatId); chat.messages.push({role,text}); chat.updated = Date.now(); saveChats(); renderHistory();
-}
-function renderAttachments() {
-  preview.replaceChildren();
-  attachments.forEach((file, i) => {
-    const chip = document.createElement('div'); chip.className = 'file-chip';
-    if (file.type.startsWith('image/')) { const img = document.createElement('img'); img.src = URL.createObjectURL(file); chip.appendChild(img); }
-    else { const vid = document.createElement('span'); vid.textContent = '▶'; chip.appendChild(vid); }
-    const name = document.createElement('span'); name.textContent = file.name.length > 18 ? file.name.slice(0,15)+'…' : file.name;
-    const remove = document.createElement('button'); remove.type = 'button'; remove.textContent = '×'; remove.setAttribute('aria-label','لابردنی هاوپێچ'); remove.onclick = () => { attachments.splice(i,1); renderAttachments(); };
-    chip.append(name,remove); preview.appendChild(chip);
-  });
-}
-function assistantDemoReply(prompt, files) {
-  const text = prompt.toLowerCase();
-  if (files.length) return 'سوپاس بۆ ناردنی فایلەکە! لەم وەشانەدا دەتوانیت وێنە و ڤیدیۆ باربکەیت، بەڵام بۆ شیکردنەوەی ناوەڕۆکیان پێویستە خزمەتگوزاریی AI بە API پەیوەست بکرێت.';
-  if (/وێنە|image|دروست بکە|بەرهەم بهێنە/.test(text)) return 'بیرۆکەکەت تۆمار کرا. بۆ دروستکردنی وێنە لە ناو چاتەوە، پێویستە خزمەتگوزاریی دروستکردنی وێنە بە API پەیوەست بکرێت. دەتوانیت وەسفی وێنەکەت بنووسیت؛ لە وەشانی ئێستادا ئەم ڕووکارییە نموونەییە.';
-  if (/ئەمڕۆ چی|چۆن یارمەت|چی دەتوانیت/.test(text)) return 'دەتوانم یارمەتیت بدەم لە وەڵامدانەوەی پرسیار، نووسین و ڕێکخستنی بیرۆکە، فێربوون، وەرگێڕان و پلاندانان. هەروەها دەتوانیت وێنە یان ڤیدیۆ باربکەیت. بۆ وەڵامی ڕاستەقینەی AI، پێویستە API لە سێرڤەرەوە پەیوەست بکرێت.';
-  return 'داواکارییەکەت وەرگیرا. ئەم ڕووکارییە بنەمای چات و مێژووی پارێزراوی Mabast AI ـە؛ بۆ وەڵامدانی ڕاستەقینە، پێویستە مۆدێلی AI بە API ـی پارێزراو لە سێرڤەر پەیوەست بکرێت. تکایە کلیلی API لە کۆدی وێبسایت دانەنێ.';
-}
-function sendMessage() {
-  const text = input.value.trim(); const files = [...attachments]; if (!text && !files.length) return;
-  addMessage('user', text || 'فایل نێردرا', files); updateChat('user', text || 'فایل نێردرا');
-  input.value = ''; input.style.height = 'auto'; attachments = []; renderAttachments(); sendBtn.disabled = true;
-  const typing = document.createElement('div'); typing.className = 'message assistant'; typing.innerHTML = '<div class="message-avatar">✦</div><div class="message-content"><span class="typing"><i></i><i></i><i></i></span></div>'; messagesEl.appendChild(typing); $('#conversation').scrollTop = $('#conversation').scrollHeight;
-  setTimeout(() => { typing.remove(); const reply = assistantDemoReply(text, files); addMessage('assistant', reply); updateChat('assistant', reply); sendBtn.disabled = false; input.focus(); }, 650);
-}
-input.addEventListener('input', () => { input.style.height='auto'; input.style.height=Math.min(input.scrollHeight,150)+'px'; });
-input.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } });
-sendBtn.addEventListener('click', sendMessage);
-$('#newChat').addEventListener('click', newChat);
-$('#attachBtn').addEventListener('click', () => fileInput.click());
-fileInput.addEventListener('change', () => { const valid = [...fileInput.files].filter(f => f.type.startsWith('image/') || f.type.startsWith('video/')); attachments.push(...valid); renderAttachments(); fileInput.value=''; });
-document.querySelectorAll('.suggestion').forEach(btn => btn.addEventListener('click', () => { input.value = btn.dataset.prompt; input.focus(); input.dispatchEvent(new Event('input')); }));
-$('#themeToggle').addEventListener('click', () => { document.body.classList.toggle('light'); localStorage.setItem('mabast-light', document.body.classList.contains('light')); });
-if (localStorage.getItem('mabast-light') === 'true') document.body.classList.add('light');
-function closeSidebar() { $('#sidebar').classList.remove('open'); $('#sidebarScrim').classList.remove('show'); }
-$('#menuToggle').addEventListener('click', () => { $('#sidebar').classList.add('open'); $('#sidebarScrim').classList.add('show'); });
-$('#sidebarScrim').addEventListener('click', closeSidebar);
-document.addEventListener('keydown', e => { if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); newChat(); } if (e.key === 'Escape') closeSidebar(); });
-renderHistory();
+function send(){const input=$('#prompt'),text=input.value.trim(),chosen=[...files];if(!text&&!chosen.length)return;if(!activeId)createChat(text||'فایل نێردرا');const c=chats.find(x=>x.id===activeId);c.messages.push({role:'user',text:text||'فایل نێردرا'});save();renderHistory($('#historySearch').value);renderChat();const messages=$('#messages');messages.appendChild(addMessage('user',text||'فایل نێردرا',chosen));const typing=document.createElement('div');typing.className='message assistant';typing.innerHTML='<div class="message-avatar">✦</div><div class="message-body"><span class="typing"><i></i><i></i><i></i></span></div>';messages.appendChild(typing);$('#view').scrollTop=$('#view').scrollHeight;files=[];setTimeout(()=>{typing.remove();const reply='وەڵامی ڕاستەقینەی Mabast AI بۆ ئەم داواکارییە لەم وەشانەدا هێشتا چالاک نییە. ئەم پڕۆژەیە ڕووکاریی تەواوی چات و مێژووی گفتوگۆکان نیشان دەدات؛ بۆ وەڵامدانی AI، API ـی پارێزراو لە سێرڤەر پێویستە. تکایە کلیلی API لە وێبسایتەکەدا مەخە.';messages.appendChild(addMessage('assistant',reply));c.messages.push({role:'assistant',text:reply});save();renderHistory($('#historySearch').value);$('#view').scrollTop=$('#view').scrollHeight},650)}
+function renderAttachments(){const row=$('#attachmentRow');if(!row)return;row.replaceChildren();files.forEach((f,i)=>{const chip=document.createElement('div');chip.className='attachment';if(f.type.startsWith('image/')){const im=document.createElement('img');im.src=URL.createObjectURL(f);chip.appendChild(im)}else{const v=document.createElement('span');v.textContent='▶';chip.appendChild(v)}const n=document.createElement('span');n.textContent=f.name.length>17?f.name.slice(0,14)+'…':f.name;const rm=document.createElement('button');rm.textContent='×';rm.onclick=()=>{files.splice(i,1);renderAttachments()};chip.append(n,rm);row.appendChild(chip)})}
+function showView(which){setNav(which);closeSide();if(which==='chat'){renderChat();return}if(which==='images')renderImages();if(which==='library')renderLibrary();if(which==='settings')renderSettings()}
+function renderImages(){view.innerHTML=`<div class="page-wrap"><div class="page-heading"><p class="eyebrow">MABAST CREATIVE</p><h1>ستۆدیۆی وێنە</h1><p>بیرۆکەی وێنەکەت بنووسە و شێواز و ڕەهەندی پێویست هەڵبژێرە.</p></div><div class="image-workbench"><section class="panel"><h2>دروستکردنی وێنە</h2><label class="field-label" for="imagePrompt">وەسفی وێنە</label><textarea class="text-field" id="imagePrompt" placeholder="بۆ نموونە: گەشتێکی خەیاڵی لە ناو شاخەکانی کوردستان، لە کاتی خۆرئاوابوون..."></textarea><div class="form-row"><div><label class="field-label" for="imageStyle">شێواز</label><select class="select-field" id="imageStyle"><option>خۆکار</option><option>وێنەی ڕاستەقینە</option><option>هونەری دیجیتاڵ</option><option>کارتۆن</option></select></div><div><label class="field-label" for="imageRatio">ڕەهەند</label><select class="select-field" id="imageRatio"><option>١:١ — چوارگۆشە</option><option>١٦:٩ — پانۆراما</option><option>٩:١٦ — ستوونی</option></select></div></div><button class="primary-button wide" id="generateImage">✧ دروستکردنی وێنە</button><div class="notice">تێبینی: دروستکردنی وێنەی ڕاستەقینە هێشتا پەیوەندیی پێویستی بە خزمەتگوزاریی image-generation API هەیە؛ ئەم پڕۆژەیە API یان کلیلی ساختە بەکارناهێنێت.</div></section><section class="panel preview-panel"><div class="preview-empty"><div class="preview-icon">✧</div><b>وێنەکەت لێرە دەردەکەوێت</b><p>وەسفەکەت بنووسە. کاتێک خزمەتگوزاریی دروستکردنی وێنە پەیوەست کرا، ئەنجامەکە لێرە پیشان دەدرێت.</p></div></section></div></div>`;$('#generateImage').onclick=()=>{const p=$('#imagePrompt').value.trim();if(!p){notify('سەرەتا وەسفی وێنەکە بنووسە.');return}notify('ئامادەی پەیوەستکردنی image API ـە؛ لەم وەشانەدا وێنە دروست ناکرێت.')};}
+function renderLibrary(){const entries=[['✧','یارمەتیی نووسین','نامە، کورتە، ڕاپۆرت و دەقی کاری.','یارمەتییم بدە دەقێکی جوان بنووسم'],['⌘','یارمەتیی پلاندانان','ئامانجەکانت بکە بە هەنگاوی ڕوون.','پلانی هەفتانە بۆ ڕێکخستنی کارەکانم دابنێ'],['◇','یارمەتیی بیرۆکە','بیرۆکەی نو�� بۆ پڕۆژە و داهێنان.','چەند بیرۆکەیەکی تازەم پێشنیار بکە'],['文','وەرگێڕان و زمان','یارمەتی لە تێگەیشتن و فێربوونی زمان.','ئەم دەقە وەرگێڕە بۆ کوردی: '],['▤','یارمەتیی خوێندن','پوختە، ڕوونکردنەوە و پرسیاری فێربوون.','بابەتێک بە زمانی سادە بۆم ڕوون بکەوە: '],['⚙','یارمەتیی کۆد','یارمەتیی فێربوون و ڕوونکردنەوەی کۆد.','ئەم کۆدە بۆم ڕوون بکەوە: ']];view.innerHTML=`<div class="page-wrap"><div class="page-heading"><p class="eyebrow">MABAST LIBRARY</p><h1>کتێبخانەی یارمەتیدەر</h1><p>بۆ دەستپێکردنی گفتوگۆ، یەکێک لە ڕووکارییەکان هەڵبژێرە.</p></div><div class="tool-grid">${entries.map((x,i)=>`<button class="tool-card" data-tool="${i}"><span class="card-icon">${x[0]}</span><b>${x[1]}</b><p>${x[2]}</p></button>`).join('')}</div></div>`;view.querySelectorAll('[data-tool]').forEach(b=>b.onclick=()=>{const e=entries[+b.dataset.tool];showView('chat');setTimeout(()=>{$('#prompt').value=e[3];$('#prompt').focus()},0)})}
+function renderSettings(){view.innerHTML=`<div class="page-wrap"><div class="page-heading"><p class="eyebrow">PREFERENCES</p><h1>ڕێکخستنەکان</h1><p>شێوازی کارکردنی Mabast AI بەپێی پێویستی خۆت ڕێکبخە.</p></div><section class="setting-section"><h2>ڕووکار</h2><p>ڕەنگ و شێوازی پیشاندانی وێبسایتەکە بگۆڕە.</p><div class="setting-row"><span>دۆخی ڕووناکی</span><input type="checkbox" class="toggle" id="lightSetting" ${document.body.classList.contains('light')?'checked':''}></div></section><section class="setting-section"><h2>داتا و تایبەتمەندی</h2><p>مێژووی گفتوگۆکان تەنها لە local storage ـی ئەم وێبگەڕەدا هەڵدەگیرێت. ئەمە پاراستنی سێرڤەری نییە؛ داتا بە گۆڕینی وێبگەڕ یان پاککردنەوەی local storage دەسڕێتەوە.</p><div class="setting-row"><span>سڕینەوەی هەموو مێژووی گفتوگۆ</span><button class="library-row button" id="clearHistory">سڕینەوە</button></div></section><section class="setting-section"><h2>دۆخی خزمەتگوزاری</h2><p>ڕووکاری چات، مێژوو، ستۆدیۆی وێنە، بارکردنی فایل و کتێبخانە ئامادەن. وەڵامدانی AI، شیکردنەوەی فایل و دروستکردنی وێنە پێویستیان بە backend و API ـی پارێزراو هەیە.</p></section></div>`;$('#lightSetting').onchange=e=>toggleTheme(e.target.checked);$('#clearHistory').onclick=()=>{if(confirm('دڵنیایت دەتەوێت هەموو مێژووی گفتوگۆ بسڕیتەوە؟')){chats=[];activeId=null;save();renderHistory();notify('مێژووی گفتوگۆکان سڕایەوە.')}}}
+function toggleTheme(force){const light=typeof force==='boolean'?force:!document.body.classList.contains('light');document.body.classList.toggle('light',light);localStorage.setItem('mabast-light',String(light));if($('#lightSetting'))$('#lightSetting').checked=light}
+function closeSide(){$('#sidebar').classList.remove('open');$('#scrim').classList.remove('show')}
+document.querySelectorAll('.nav-item').forEach(b=>b.onclick=()=>showView(b.dataset.view));$('#newChat').onclick=newChat;$('#settingsNav').onclick=()=>showView('settings');$('#themeToggle').onclick=()=>toggleTheme();$('#menuToggle').onclick=()=>{$('#sidebar').classList.add('open');$('#scrim').classList.add('show')};$('#scrim').onclick=closeSide;$('#searchToggle').onclick=()=>{$('#searchBox').classList.toggle('open');if($('#searchBox').classList.contains('open'))$('#historySearch').focus()};$('#historySearch').oninput=e=>renderHistory(e.target.value);fileInput.onchange=()=>{files.push(...[...fileInput.files].filter(f=>f.type.startsWith('image/')||f.type.startsWith('video/')));renderAttachments();fileInput.value=''};$('#themeToggle').title='گۆڕینی ڕووناکی';document.addEventListener('keydown',e=>{if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){e.preventDefault();newChat()}if(e.key==='Escape')closeSide()});if(localStorage.getItem('mabast-light')==='true')document.body.classList.add('light');renderHistory();renderChat();
